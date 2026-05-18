@@ -36,8 +36,7 @@ class CustomerControllerTest {
         when(customerService.getAllCustomers()).thenReturn(Collections.emptyList());
 
         mockMvc.perform(get("/api/customers"))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON));
+                .andExpect(status().isOk());
     }
 
     @Test

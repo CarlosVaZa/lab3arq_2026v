@@ -9,6 +9,9 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
+import org.springframework.hateoas.CollectionModel;
 
 @RestController
 @RequestMapping("/api/customers")
@@ -22,13 +25,22 @@ public class CustomerController {
     }
 
     @GetMapping
-    public ResponseEntity<List<CustomerDTO>> getAllCustomers() {
-        return ResponseEntity.ok(customerFacade.getAllCustomers());
+    public ResponseEntity<CollectionModel<CustomerDTO>> getAllCustomers() {
+        List<CustomerDTO> customers = customerFacade.getAllCustomers();
+        customers.forEach(customer -> {
+            customer.add(linkTo(methodOn(CustomerController.class).getCustomerById(customer.getId())).withSelfRel());
+        });
+        CollectionModel<CustomerDTO> collectionModel = CollectionModel.of(customers);
+        collectionModel.add(linkTo(methodOn(CustomerController.class).getAllCustomers()).withSelfRel());
+        return ResponseEntity.ok(collectionModel);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<CustomerDTO> getCustomerById(@PathVariable @Positive Long id) {
-        return ResponseEntity.ok(customerFacade.getCustomerById(id));
+        CustomerDTO customer = customerFacade.getCustomerById(id);
+        customer.add(linkTo(methodOn(CustomerController.class).getCustomerById(id)).withSelfRel());
+        customer.add(linkTo(methodOn(CustomerController.class).getAllCustomers()).withRel("customers"));
+        return ResponseEntity.ok(customer);
     }
 
     @GetMapping("/account/{accountNumber}")
@@ -36,6 +48,8 @@ public class CustomerController {
             @PathVariable String accountNumber
     ) {
         CustomerDTO customer = customerFacade.getCustomerByAccountNumber(accountNumber);
+        customer.add(linkTo(methodOn(CustomerController.class).getCustomerByAccountNumber(accountNumber)).withSelfRel());
+        customer.add(linkTo(methodOn(CustomerController.class).getCustomerById(customer.getId())).withRel("customer-details"));
         return ResponseEntity.ok(customer);
     }
 
@@ -43,7 +57,9 @@ public class CustomerController {
     public ResponseEntity<CustomerDTO> createCustomer(
             @Valid @RequestBody CustomerDTO customerDTO
     ) {
-        return ResponseEntity.ok(customerFacade.createCustomer(customerDTO));
+        CustomerDTO createdCustomer = customerFacade.createCustomer(customerDTO);
+        createdCustomer.add(linkTo(methodOn(CustomerController.class).getCustomerById(createdCustomer.getId())).withSelfRel());
+        return ResponseEntity.ok(createdCustomer);
     }
 
     @PutMapping("/{id}")
@@ -51,7 +67,9 @@ public class CustomerController {
             @PathVariable @Positive Long id,
             @Valid @RequestBody CustomerDTO customerDTO
     ) {
-        return ResponseEntity.ok(customerFacade.updateCustomer(id, customerDTO));
+        CustomerDTO updatedCustomer = customerFacade.updateCustomer(id, customerDTO);
+        updatedCustomer.add(linkTo(methodOn(CustomerController.class).getCustomerById(id)).withSelfRel());
+        return ResponseEntity.ok(updatedCustomer);
     }
 
     @DeleteMapping("/{id}")

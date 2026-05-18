@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: banco2026v-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: banco2026v
+  template:
+    metadata:
+      labels:
+        app: banco2026v
+    spec:
+      containers:
+        - name: banco2026v-app
+          image: banco2026v-app:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8089
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://mysql:3306/banco2026v?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: root
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                configMapKeyRef:
+                  name: mysql-config
+                  key: MYSQL_ROOT_PASSWORD
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: banco2026v-service
+spec:
+  ports:
+    - port: 8089
+      targetPort: 8089
+  selector:
+    app: banco2026v
+  type: LoadBalancer

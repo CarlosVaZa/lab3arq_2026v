@@ -33,6 +33,14 @@ class Banco2026vApplicationTests {
 	}
 
 	@Test
+	@DisplayName("Test OpenAPI Docs generation")
+	void testOpenApiDocs() throws Exception {
+		mockMvc.perform(get("/v3/api-docs"))
+				.andDo(org.springframework.test.web.servlet.result.MockMvcResultHandlers.print())
+				.andExpect(status().isOk());
+	}
+
+	@Test
 	@DisplayName("Main Method Test")
 	void mainMethodTest() {
 		// Se pasan argumentos para usar H2 y puerto aleatorio, permitiendo cubrir la línea del main
