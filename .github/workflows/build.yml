@@ -1,0 +1,111 @@
+name: CI/CD Pipeline Banco2026v
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, test_branch ]
+
+jobs:
+  tests:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Run Tests
+        run: |
+          cd banco2026v
+          mvn -B test
+
+  sonar:
+    needs: tests
+    name: SonarCloud Quality Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Cache Sonar
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: Analyze with SonarCloud
+        run: |
+          cd banco2026v
+          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }} \
+            -Dsonar.organization=${{ vars.SONAR_ORG }} \
+            -Dsonar.host.url=https://sonarcloud.io
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  build:
+    needs: sonar
+    name: Artifact Generation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build JAR
+        run: |
+          cd banco2026v
+          mvn -B package -DskipTests --file pom.xml
+
+
+      - name: Verify JAR name
+        run: |
+          echo "=== JARs generados en target/ ==="
+          ls -la banco2026v/target/*.jar
+          echo "=== Directorio actual ==="
+          pwd
+
+
+      - name: Rename JAR to expected name
+        run: |
+          JAR=$(ls banco2026v/target/*.jar | grep -v 'original' | head -1)
+          echo "JAR encontrado: $JAR"
+          cp "$JAR" banco2026v/target/lab22026v.jar
+          echo "Copiado como lab22026v.jar"
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: banco2026v-jar
+          path: banco2026v/target/lab22026v.jar
+
+      - name: Build & push Docker image
+        uses: mr-smithers-excellent/docker-build-push@v6
+        with:
+          image: apabon03/lab22026v
+          tags: latest
+          registry: docker.io
+          dockerfile: banco2026v/Dockerfile
+          directory: .
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
